@@ -196,14 +196,14 @@ class TweetDeleter():
     def unlike_tweets(self):
         if not self.api:
             return
-        likes = tweepy.Cursor(api.favorites).items()
+        likes = tweepy.Cursor(self.api.favorites).items()
         unliked_count = 0
         ignored_count = 0
         for ind, tweet in enumerate(likes):
             # Where tweets are not in save list and older than cutoff date
-            if not is_protected_like(tweet) and not self.simulate:
+            if not self.is_protected_like(tweet) and not self.simulate:
                 try:
-                    api.destroy_favorite(tweet.id)
+                    self.api.destroy_favorite(tweet.id)
                 except tweepy.error.TweepError as e:
                     print("\t#{}\tCOULD NOT UNLIKE {} ({})".format(ind, tweet.id, tweet.created_at))
                     print(e)
