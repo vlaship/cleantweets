@@ -14,6 +14,9 @@ Some of the things I've added/changed:
  - wait after tweepy errors, then restart (e.g. work around rate limiting in a very simple way)
  - some exception handling / value validation  (incomplete) 
 
+You can use tweetdelete.py to just export your tweets / liked_tweets by adding both --export and --simulate to --delete/--unlike.
+The tweets will be exported to JSON, but the deletion/unliking won't be actually executed.
+
 ## Usage
 ```
 usage: tweetdeleter.py [-h] [--delete] [--unlike] [--export] [--simulate]
