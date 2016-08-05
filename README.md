@@ -1,6 +1,6 @@
 # tweetdeleter
 
-A command line script to delete, and/or unlike tweets (and export them prior to that). Tweets can be "protected" from deletion by their IDs, or if they contains keywords, or by their age, or (for own tweets) by the number of retweets and likes. 
+A command line script to delete, and/or unlike tweets (and export them prior to that). Tweets can be "protected" from deletion by their IDs, if they contains keywords, by their age, or (for own tweets) by the number of retweets and likes. 
 
 
 Original script by Mathew Inkson (http://www.mathewinkson.com/2015/03/delete-old-tweets-selectively-using-python-and-tweepy)
