@@ -31,6 +31,13 @@ Delete all tweets that have fewer than 5 retweets
 
 Delete all tweets that are more than 30 days old, but only if they have fewer than 5 retweets
 
+`python3 tweetdeleter.py --unlike --tweetids "755877343051259906,755872834258337792"`
+
+Delete all tweets, except the tweets with the ID 755877343051259906 and 755872834258337792
+
+`python3 tweetdeleter.py --unlike --likedkws "python,pandas,flask`
+
+Unlike all tweets, except those containing either "python" or "pandas" or "flask" (case-insensitive)
 
 `python3 tweetdeleter.py --unlike --verbose`
 
@@ -39,8 +46,6 @@ Unlike all tweets, detailed output
 `python3 tweetdeleter.py --export --delete`
 
 Export and delete all tweets.
-
-
 
 `python3 tweetdeleter.py --export --delete --unlike --verbose`
 
