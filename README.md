@@ -6,6 +6,14 @@ A command line script to export, delete, and/or unlike tweets. Tweets can be "pr
 Original script by Mathew Inkson (http://www.mathewinkson.com/2015/03/delete-old-tweets-selectively-using-python-and-tweepy)
 released unter the "Unlicense" (http://unlicense.org) as public domain. Fork of a modified version published on GitHub by Daniel Faulknor (also public domain under the "Unlicense").
 
+Some of the things I've added/changed:
+
+ - added command line arguments
+ - added settings.ini for defaults and auth data
+ - export tweets (as JSON)
+ - wait after tweepy errors, then restart (e.g. work around rate limiting in a very simple way)
+ - some exception handling / value validation  (incomplete) 
+
 
 ## Examples
 
