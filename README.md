@@ -14,6 +14,37 @@ Some of the things I've added/changed:
  - wait after tweepy errors, then restart (e.g. work around rate limiting in a very simple way)
  - some exception handling / value validation  (incomplete) 
 
+## Usage
+```
+usage: tweetdeleter.py [-h] [--delete] [--unlike] [--export] [--simulate]
+                       [--verbose] [--config PATH] [--wait N] [--days N]
+                       [--likes N] [--retweets N] [--tweetids ID,ID,...]
+                       [--tweetkws KW,KW,...] [--likedids ID,ID,...]
+                       [--likedkws KW,KW,...]
+
+Unlike or delete (re-)tweets (and optionally export them first). Set other
+parameters via configuration file (default: "settings.ini" in script
+directory) or arguments. Set arguments will overrule the configuration file.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --delete              delete tweets
+  --unlike              unlike tweets
+  --export              export before deleting/unliking
+  --simulate            only simulate the process
+  --verbose             enable detailed output
+  --config PATH         custom config path (for multiple profiles)
+  --wait N              wait N minutes after errors/rate limiting
+  --days N              keep last N days of tweets/likes
+  --likes N             keep tweets with at least N likes
+  --retweets N          keep tweets with at least N retweets
+  --tweetids ID,ID,...  comma-separated list of tweet ids to keep
+  --tweetkws KW,KW,...  comma-separated list of keywords for tweets
+  --likedids ID,ID,...  comma-separated tweet ids for liked tweets
+  --likedkws KW,KW,...  comma-separated list of keywords for liked tweets
+```
+
+
 ## Configuration file (settings.ini)
 
 If a corresponding command line argument is provided, it will override the value specified in the configuration file.
