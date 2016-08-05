@@ -83,3 +83,11 @@ Export and delete all tweets.
 `python3 tweetdeleter.py --export --delete --unlike --verbose`
 
 Export all tweets and liked tweets, delete all tweets, unlike all liked tweets, detailed output
+
+## Requirements
+
+- Python 3
+- tweepy
+
+## License
+Apache License (2.0)
