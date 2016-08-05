@@ -6,14 +6,18 @@ import argparse
 import datetime 
 import configparser
 import time
+import json
 import tweepy
 
 class TweetDeleter():
     def __init__(self, args=None):
         self.script_dir = os.path.dirname(os.path.realpath(sys.argv[0]))
+        self.export_dir = os.path.join(self.script_dir, "exported_tweets")
         if args:
+            self.export = args.export_tweets
             self.simulate = args.simulate
             self.verbose = args.verbose
+            self.mins_to_wait = args.mins_to_wait
             self.days_to_keep = args.days_to_keep
             self.liked_threshold = args.liked_threshold
             self.retweet_threshold = args.retweet_threshold
@@ -26,8 +30,10 @@ class TweetDeleter():
             else:
                 self.config_path = args.config_path
         else:
+            self.export = False
             self.verbose = False
             self.simulate = False
+            self.min_to_wait = -1
             self.days_to_keep = -1
             self.tweet_ids_to_keep = []
             self.liked_ids_to_keep = []
@@ -39,6 +45,14 @@ class TweetDeleter():
         if not os.path.exists(self.config_path):
             self.create_config_template()
         self.authenticate_from_config()  # check required settings first
+        if self.export:
+            try:
+                os.makedirs(self.export_dir)
+            except FileExistsError:
+                pass
+            except IOError as e:
+                raise(e)
+
         if self.api:
             self.check_config()  # load values from config if not provided as args
             self.validate_values()
@@ -52,6 +66,11 @@ class TweetDeleter():
 
 
     def check_config(self):
+        # MINS TO WAIT
+        if self.mins_to_wait < 0:
+            v = self.load_from_config("DefaultValues", "MinsToWait", 10)
+            if v:
+                self.mins_to_wait = v
         # DAYS TO KEEP
         if self.days_to_keep < 0:
             v = self.load_from_config("DefaultValues", "DaysToKeep", -1)
@@ -89,13 +108,21 @@ class TweetDeleter():
                 self.liked_keywords_to_keep = self.list_loader(p, "liked tweet keyword")            
 
     def validate_values(self):
+        # MINS TO WAIT
+        try: 
+            self.min_to_wait = int(self.mins_to_wait)
+            if self.mins_to_wait == -1:
+                self.mins_to_wait = 10
+        except TypeError:
+            print("Not a valid number of minutes to wait, defaulting to 10 minutes:\n{}".format(e))
+            self.mins_to_wait = 10
         # DAYS TO KEEP
         try: 
             self.days_to_keep = int(self.days_to_keep)
             if self.days_to_keep == -1:
                 self.days_to_keep = 0
         except TypeError:
-            print("Not a valid a valid number of days to keep, defaulting to 0 to ignore tweet age:\n{}".format(e))
+            print("Not a valid number of days to keep, defaulting to 0 to ignore tweet age:\n{}".format(e))
             self.days_to_keep = 0
         else:
             self.cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=self.days_to_keep)
@@ -209,6 +236,7 @@ class TweetDeleter():
         config.set("Authentication", "AccessToken", "")
         config.set("Authentication", "AccessTokenSecret", "")
         config.add_section("DefaultValues")
+        config.set("DefaultValues", "MinsToWait", "10")
         config.set("DefaultValues", "DaysToKeep", "")
         config.set("DefaultValues", "LikedThreshold", "")
         config.set("DefaultValues", "RetweetThreshold", "")
@@ -224,6 +252,28 @@ class TweetDeleter():
         except IOError:
             print("An empty configuration template has been created at {}".format(self.config_path))
 
+    def export_to_json(self, tweet, fav=False):
+        try:
+            json_str = json.dumps(tweet._json, sort_keys=True, indent=4)
+            if fav:
+                json_path = os.path.join(self.export_dir, "liked_tweet_{}.json".format(tweet.id_str))
+            else:
+                json_path = os.path.join(self.export_dir, "tweet_{}.json".format(tweet.id_str))
+            try:
+                with open(json_path, "w") as h:
+                    h.write(json_str)
+            except IOError as e:
+                print("\t\tCOULD NOT EXPORT {} ({}), WON'T DELETE/UNLIKE.".format(tweet.id_str, tweet.created_at))
+                print("\t", e)
+                return False
+            else:
+                if self.verbose:
+                    print("\t\tEXPORTED {} ({})".format(tweet.id_str, tweet.created_at))
+                return True
+        except (TypeError, json.decoder.JSONDecodeError) as e:
+            print("\t\tCOULD NOT EXPORT {} ({}), WON'T".format(tweet.id_str, tweet.created_at))
+            print("\t", e)
+            return False
 
     def contains_keywords_to_keep(self, tweet, fav=False):
         if fav:
@@ -234,7 +284,7 @@ class TweetDeleter():
 
     def is_protected_tweet(self, tweet):
         protected = False
-        if tweet.id in self.tweet_ids_to_keep:
+        if tweet.id_str in self.tweet_ids_to_keep:
             protected = True
         elif tweet.created_at >= self.cutoff_date:
             protected = True
@@ -248,7 +298,7 @@ class TweetDeleter():
 
     def is_protected_like(self, tweet):
         protected = False
-        if tweet.id in self.liked_ids_to_keep:
+        if tweet.id_str in self.liked_ids_to_keep:
             protected = True
         elif tweet.created_at >= self.cutoff_date:
             protected = True
@@ -279,20 +329,27 @@ class TweetDeleter():
         ignored_count = 0
         try:
             for ind, tweet in enumerate(timeline_tweets):
-                if not self.is_protected_tweet(tweet) and not self.simulate:
+                print("\t#{}:".format(ind))
+                if self.export:
+                    exported = self.export_to_json(tweet)
+                else:
+                    exported = True  # pretend for easier checking below
+
+                if not self.is_protected_tweet(tweet) and not self.simulate and exported:
                     try:
-                        self.api.destroy_status(tweet.id) 
+                        self.api.destroy_status(tweet.id_str) 
                     except tweepy.error.TweepError as e:
-                        print("\t#{}\tCOULD NOT DELETE {} ({})".format(ind, tweet.id, tweet.created_at))
+                        print("\t\tCOULD NOT DELETE {} ({})".format(tweet.id_str, tweet.created_at))
                         print("\t", e)
                     else:
                         deletion_count += 1
                         if self.verbose:
-                            print("\t#{}\tDELETED {} ({})".format(ind, tweet.id, tweet.created_at))
-                else:                    
+                            print("\t\tDELETED {} ({})".format(tweet.id_str, tweet.created_at))
+                else:   
+                    print(self.is_protected_tweet(tweet), self.simulate, exported)                 
                     ignored_count += 1
                     if self.verbose:
-                        print("\t#{}\tKEEPING {} ({})".format(ind, tweet.id, tweet.created_at))
+                        print("\t\tKEEPING {} ({})".format(tweet.id_str, tweet.created_at))
         except tweepy.error.TweepError as e:
             print(e)
             print("Waiting 10 minutes, then starting over ({})".format(datetime.datetime.now()))
@@ -319,21 +376,25 @@ class TweetDeleter():
         ignored_count = 0
         try:
             for ind, tweet in enumerate(likes):
-                # Where tweets are not in save list and older than cutoff date
-                if not self.is_protected_like(tweet) and not self.simulate:
+                print("\t#{}:".format(ind))
+                if self.export:
+                    exported = self.export_to_json(tweet, fav=True)
+                else:
+                    exported = True  # pretend for easier checking below
+                if not self.is_protected_like(tweet) and not self.simulate and exported:
                     try:
-                        self.api.destroy_favorite(tweet.id)
+                        self.api.destroy_favorite(tweet.id_str)
                     except tweepy.error.TweepError as e:
-                        print("\t#{}\tCOULD NOT UNLIKE {} ({})".format(ind, tweet.id, tweet.created_at))
+                        print("\t\tCOULD NOT UNLIKE {} ({})".format(tweet.id_str, tweet.created_at))
                         print(e)
                     else:
                         unliked_count += 1
                         if self.verbose:
-                            print("\t#{}\tUNLIKED {} ({})".format(ind, tweet.id, tweet.created_at))
+                            print("\t\tUNLIKED {} ({})".format(tweet.id_str, tweet.created_at))
                 else:
                     ignored_count += 1
                     if self.verbose:
-                        print("\t#{}\tKEEPING {} ({})".format(ind, tweet.id, tweet.created_at))
+                        print("\t\tKEEPING {} ({})".format(tweet.id_str, tweet.created_at))
         except tweepy.error.TweepError as e:
             print(e)
             print("Waiting 10 minutes, then starting over ({})".format(datetime.datetime.now()))
@@ -348,13 +409,14 @@ def comma_string_to_list(s):
    return s.split(',')
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Delete or unlike tweets. Set other parameters via configuration file (default: "settings.ini" in script directory) or arguments. Set arguments will overrule the configuration file.')
+    parser = argparse.ArgumentParser(description='Unlike or delete (re-)tweets (and optionally export them first). Set other parameters via configuration file (default: "settings.ini" in script directory) or arguments. Set arguments will overrule the configuration file.')
     parser.add_argument("--delete", dest="delete_tweets", help="delete tweets", action="store_true")
     parser.add_argument("--unlike", dest="unlike_tweets", help="unlike tweets", action="store_true")
     parser.add_argument("--export", dest="export_tweets", help = "export before deleting/unliking", action="store_true")
     parser.add_argument("--simulate", dest="simulate", help = "only simulate the process", action="store_true")
     parser.add_argument("--verbose", dest="verbose", help = "enable detailed output", action="store_true")
     parser.add_argument("--config", default="settings.ini", metavar="PATH", dest="config_path", help='custom config path (for multiple profiles)', type=str, action="store")
+    parser.add_argument("--wait", default=10, metavar="N", dest="mins_to_wait", type=int, help="wait N minutes after errors/rate limiting", action="store")
     parser.add_argument("--days", default=-1, metavar="N", dest="days_to_keep", type=int, help="keep last N days of tweets/likes", action="store")
     parser.add_argument("--likes", default=-1, metavar="N", dest="liked_threshold", type=int, help="keep tweets with at least N likes", action="store")
     parser.add_argument("--retweets", default=-1, metavar="N", dest="retweet_threshold", type=int, help="keep tweets with at least N retweets", action="store")
@@ -364,11 +426,9 @@ if __name__ == "__main__":
     parser.add_argument("--likedkws", default=[], metavar="KW,KW,...", dest="liked_keywords_to_keep", type = comma_string_to_list, help="comma-separated list of keywords for liked tweets", action="store")
     
     args = parser.parse_args()
-    print(args)
     td = TweetDeleter(args)
     print(td)
     if args.delete_tweets:
         td.delete_tweets()
     if args.unlike_tweets:
         td.unlike_tweets()
-    
