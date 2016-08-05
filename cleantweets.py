@@ -346,7 +346,6 @@ class TweetDeleter():
                         if self.verbose:
                             print("\t\tDELETED {} ({})".format(tweet.id_str, tweet.created_at))
                 else:   
-                    print(self.is_protected_tweet(tweet), self.simulate, exported)                 
                     ignored_count += 1
                     if self.verbose:
                         print("\t\tKEEPING {} ({})".format(tweet.id_str, tweet.created_at))
