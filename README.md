@@ -1,4 +1,4 @@
-# tweetdeleter
+# cleantweets
 
 A command line script to delete and/or unlike tweets (and export them prior to that). Tweets can be "protected" from deletion by their IDs, if they contains keywords, by their age, or (for own tweets) by the number of retweets and likes. 
 
@@ -14,12 +14,12 @@ Some of the things I've added/changed:
  - wait after tweepy errors, then restart (e.g. work around rate limiting in a very simple way)
  - some exception handling / value validation  (incomplete) 
 
-You can use tweetdelete.py to just export your tweets / liked_tweets by adding both --export and --simulate to --delete/--unlike.
+You can use cleantweets.py to just export your tweets / liked_tweets by adding both --export and --simulate to --delete/--unlike.
 The tweets will be exported to JSON, but the deletion/unliking won't be actually executed.
 
 ## Usage
 ```
-usage: tweetdeleter.py [-h] [--delete] [--unlike] [--export] [--simulate]
+usage: cleantweets.py [-h] [--delete] [--unlike] [--export] [--simulate]
                        [--verbose] [--config PATH] [--wait N] [--days N]
                        [--likes N] [--retweets N] [--tweetids ID,ID,...]
                        [--tweetkws KW,KW,...] [--likedids ID,ID,...]
@@ -74,47 +74,47 @@ LikedKeywordsPath = PATH_TO_A_TEXT_FILE_WITH_ONE_KEYWORD_PER_LINE
 
 A couple of example calls from the command line:
 
-`python3 tweetdeleter.py --delete`
+`python3 cleantweets.py --delete`
 
 Delete all tweets. Load options from "settings.ini".
 
-`python3 tweetdeleter.py --delete --config "another_settings_file.ini"`
+`python3 cleantweets.py --delete --config "another_settings_file.ini"`
 
 Delete all tweets. Load other options from "another_settings_file.ini" instead of the default "settings.ini"
 
-`python3 tweetdeleter.py --delete --days 10`
+`python3 cleantweets.py --delete --days 10`
 
 Delete all tweets that are more than 10 days old. Load other options from "settings.ini".
 
-`python3 tweetdeleter.py --delete --likes 5`
+`python3 cleantweets.py --delete --likes 5`
 
 Delete all tweets that have fewer than 5 likes.Load other options from "settings.ini".
 
-`python3 tweetdeleter.py --delete --retweets 5`
+`python3cleantweets.py --delete --retweets 5`
 
 Delete all tweets that have fewer than 5 retweets. Load other options from "settings.ini".
 
-`python3 tweetdeleter.py --delete --days 30 --retweets 5`
+`python3 cleantweets.py --delete --days 30 --retweets 5`
 
 Delete all tweets that are more than 30 days old, but only if they have fewer than 5 retweets. Load other options from "settings.ini".
 
-`python3 tweetdeleter.py --unlike --tweetids "755877343051259906,755872834258337792"`
+`python3 cleantweets.py --unlike --tweetids "755877343051259906,755872834258337792"`
 
 Delete all tweets, except the tweets with the ID 755877343051259906 and 755872834258337792. Load other options from "settings.ini"
 
-`python3 tweetdeleter.py --unlike --likedkws "python,pandas,flask`
+`python3 cleantweets.py --unlike --likedkws "python,pandas,flask`
 
 Unlike all tweets, except those containing either "python" or "pandas" or "flask" (case-insensitive). Load other default options from "settings.ini".
 
-`python3 tweetdeleter.py --unlike --verbose`
+`python3 cleantweets.py --unlike --verbose`
 
 Unlike all tweets, detailed output
 
-`python3 tweetdeleter.py --export --delete`
+`python3 cleantweets.py --export --delete`
 
 Export and delete all tweets.
 
-`python3 tweetdeleter.py --export --delete --unlike --verbose`
+`python3 cleantweets.py --export --delete --unlike --verbose`
 
 Export all tweets and liked tweets, delete all tweets, unlike all liked tweets, detailed output
 
