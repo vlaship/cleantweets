@@ -77,7 +77,16 @@ class TweetDeleter():
             p = self.load_from_config("DefaultPaths", "TweetKeywordsPath", None)
             if p:
                 self.tweet_keywords_to_keep = self.list_loader(p, "tweet keyword")
-            
+        # LIKED IDs TO KEEP
+        if not self.liked_ids_to_keep:
+            p = self.load_from_config("DefaultPaths", "LikedIDsPath", None)
+            if p:
+                self.liked_ids_to_keep = self.list_loader(p, "liked tweet ID")
+        # LIKED KWs TO KEEP
+        if not self.liked_keywords_to_keep:
+            p = self.load_from_config("DefaultPaths", "LikedKeywordsPath", None)
+            if p:
+                self.liked_keywords_to_keep = self.list_loader(p, "liked tweet keyword")            
 
     def validate_values(self):
         # DAYS TO KEEP
@@ -258,9 +267,9 @@ class TweetDeleter():
             return
         print("Deleting tweets older than {} (simulation={})".format(self.cutoff_date, self.simulate))
         if self.tweet_ids_to_keep:
-            print("Keeping tweets with the following ids: {}".format(self.tweet_ids_to_keep))
+            print("Keeping tweets with the following ids: {}".format(",".join(self.tweet_ids_to_keep)))
         if self.tweet_keywords_to_keep:
-            print("Keeping tweets containing the following keywords (case-insensitive): {}".format(self.tweet_keywords_to_keep))
+            print("Keeping tweets containing the following keywords (case-insensitive): {}".format(",".join(self.tweet_keywords_to_keep)))
         if self.retweet_threshold > -1:
             print("Keeping tweets with at least {} retweets".format(self.retweet_threshold))
         if self.liked_threshold > -1:
@@ -301,59 +310,65 @@ class TweetDeleter():
             return
         print("Unliking tweets older than {} (simulation={})".format(self.cutoff_date, self.simulate))
         if self.liked_ids_to_keep:
-            print("Keeping liked tweets with the following ids: {}".format(self.liked_ids_to_keep))
+            print("Keeping liked tweets with the following ids: {}".format(",".join(self.liked_ids_to_keep)))
         if self.liked_keywords_to_keep: 
-            print("Keeping liked tweets containing the following keywords (case-insensitive): {}".format(self.liked_keywords_to_keep))
+            print("Keeping liked tweets containing the following keywords (case-insensitive): {}".format(",".join(self.liked_keywords_to_keep)))
 
         likes = tweepy.Cursor(self.api.favorites).items()
         unliked_count = 0
         ignored_count = 0
-        for ind, tweet in enumerate(likes):
-            # Where tweets are not in save list and older than cutoff date
-            if not self.is_protected_like(tweet) and not self.simulate:
-                try:
-                    self.api.destroy_favorite(tweet.id)
-                except tweepy.error.TweepError as e:
-                    print("\t#{}\tCOULD NOT UNLIKE {} ({})".format(ind, tweet.id, tweet.created_at))
-                    print(e)
+        try:
+            for ind, tweet in enumerate(likes):
+                # Where tweets are not in save list and older than cutoff date
+                if not self.is_protected_like(tweet) and not self.simulate:
+                    try:
+                        self.api.destroy_favorite(tweet.id)
+                    except tweepy.error.TweepError as e:
+                        print("\t#{}\tCOULD NOT UNLIKE {} ({})".format(ind, tweet.id, tweet.created_at))
+                        print(e)
+                    else:
+                        unliked_count += 1
+                        if self.verbose:
+                            print("\t#{}\tUNLIKED {} ({})".format(ind, tweet.id, tweet.created_at))
                 else:
-                    unliked_count += 1
+                    ignored_count += 1
                     if self.verbose:
-                        print("\t#{}\tUNLIKED {} ({})".format(ind, tweet.id, tweet.created_at))
-            else:
-                ignored_count += 1
-                if self.verbose:
-                    print("\t#{}\tKEEPING {} ({})".format(ind, tweet.id, tweet.created_at))
+                        print("\t#{}\tKEEPING {} ({})".format(ind, tweet.id, tweet.created_at))
+        except tweepy.error.TweepError as e:
+            print(e)
+            print("Waiting 10 minutes, then starting over ({})".format(datetime.datetime.now()))
+            time.sleep(600)
+            self.unlike_tweets()
         if not self.simulate:
             print("{} tweets were unliked. {} liked tweets were protected.".format(unliked_count, ignored_count))
         else:
             print("SIMULATION: {} tweets would be unliked. {} liked tweets would be protected.".format(unliked_count, ignored_count))
 
-def comma_string_to_list(str):
-   return str.split(',')
+def comma_string_to_list(s):
+   return s.split(',')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Delete or unlike tweets. Set other parameters via configuration file (default: "settings.ini" in script directory) or arguments. Set arguments will overrule the configuration file.')
-    parser.add_argument("--delete", dest="delete_tweets", help="delete tweets.", action="store_true")
-    parser.add_argument("--unlike", dest="unlike_tweets", help="unlike tweets.", action="store_true")
-    parser.add_argument("--backup", dest="backup_tweets", help = "backup (liked) tweets to CSV file before deleting/unliking", action="store_true")
-    parser.add_argument("--config", default="settings.ini", metavar="PATH", dest="config_path", help='Config path ', type=str, action="store")
+    parser.add_argument("--delete", dest="delete_tweets", help="delete tweets", action="store_true")
+    parser.add_argument("--unlike", dest="unlike_tweets", help="unlike tweets", action="store_true")
+    parser.add_argument("--export", dest="export_tweets", help = "export before deleting/unliking", action="store_true")
     parser.add_argument("--simulate", dest="simulate", help = "only simulate the process", action="store_true")
     parser.add_argument("--verbose", dest="verbose", help = "enable detailed output", action="store_true")
-    parser.add_argument("-D", default=-1, metavar="<n>", dest="days_to_keep", type=int, help="keep last <n> days of tweets/likes", action="store")
-    parser.add_argument("-L", default=-1, metavar="<n>", dest="liked_threshold", type=int, help="keep tweets with >= <n> likes", action="store")
-    parser.add_argument("-R", default=-1, metavar="<n>", dest="retweet_threshold", type=int, help="keep tweets with >= <n> retweets", action="store")
-    parser.add_argument("--tweetids", default=[], metavar="", dest="tweet_ids_to_keep", type = comma_string_to_list, help="a string of comma-separated list of tweet ids to keep", action="store")
-    parser.add_argument("--tweetkeys", default=[], metavar="", dest="tweet_keywords_to_keep", type = comma_string_to_list, help="a string of comma-separated list of keywords to identify tweets to keep", action="store")
-    parser.add_argument("--likedids", default=[], metavar="", dest="liked_ids_to_keep", type = comma_string_to_list, help="a string of comma-separated tweet ids for liked tweets to keep.", action="store")
-    parser.add_argument("--likedkeys", default=[], metavar="", dest="liked_keywords_to_keep", type = comma_string_to_list, help="a string of comma-separated list of keywords to identify liked tweets to keep (default: check config file)", action="store")
+    parser.add_argument("--config", default="settings.ini", metavar="PATH", dest="config_path", help='custom config path (for multiple profiles)', type=str, action="store")
+    parser.add_argument("--days", default=-1, metavar="N", dest="days_to_keep", type=int, help="keep last N days of tweets/likes", action="store")
+    parser.add_argument("--likes", default=-1, metavar="N", dest="liked_threshold", type=int, help="keep tweets with at least N likes", action="store")
+    parser.add_argument("--retweets", default=-1, metavar="N", dest="retweet_threshold", type=int, help="keep tweets with at least N retweets", action="store")
+    parser.add_argument("--tweetids", default=[], metavar="ID,ID,...", dest="tweet_ids_to_keep", type = comma_string_to_list, help="comma-separated list of tweet ids to keep", action="store")
+    parser.add_argument("--tweetkws", default=[], metavar="KW,KW,...", dest="tweet_keywords_to_keep", type = comma_string_to_list, help="comma-separated list of keywords for tweets", action="store")
+    parser.add_argument("--likedids", default=[], metavar="ID,ID,...", dest="liked_ids_to_keep", type = comma_string_to_list, help="comma-separated tweet ids for liked tweets", action="store")
+    parser.add_argument("--likedkws", default=[], metavar="KW,KW,...", dest="liked_keywords_to_keep", type = comma_string_to_list, help="comma-separated list of keywords for liked tweets", action="store")
     
     args = parser.parse_args()
     print(args)
     td = TweetDeleter(args)
     print(td)
-    """
-    td.authenticate_from_config()
-    td.delete_tweets()
-    td.unlike_tweets()
-    """
+    if args.delete_tweets:
+        td.delete_tweets()
+    if args.unlike_tweets:
+        td.unlike_tweets()
+    
