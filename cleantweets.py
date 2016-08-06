@@ -324,17 +324,16 @@ class TweetDeleter():
             print("Keeping tweets with at least {} retweets".format(self.retweet_threshold))
         if self.liked_threshold > -1:
             print("Keeping tweets with at least {} likes".format(self.liked_threshold))
-        timeline_tweets = tweepy.Cursor(self.api.user_timeline).items()
         deletion_count = 0
         ignored_count = 0
-        try:
-            for ind, tweet in enumerate(timeline_tweets):
-                print("\t#{}:".format(ind))
+        timeline = tweepy.Cursor(self.api.user_timeline).items()
+        while True:
+            try:
+                tweet = timeline.next()
                 if self.export:
                     exported = self.export_to_json(tweet)
                 else:
                     exported = True  # pretend for easier checking below
-
                 if not self.is_protected_tweet(tweet) and not self.simulate and exported:
                     try:
                         self.api.destroy_status(tweet.id_str) 
@@ -349,11 +348,12 @@ class TweetDeleter():
                     ignored_count += 1
                     if self.verbose:
                         print("\t\tKEEPING {} ({})".format(tweet.id_str, tweet.created_at))
-        except tweepy.error.TweepError as e:
-            print(e)
-            print("Waiting 10 minutes, then starting over ({})".format(datetime.datetime.now()))
-            time.sleep(600)
-            self.delete_tweets()
+            except tweepy.error.TweepError as e:
+                print(e)
+                print("Waiting {} minutes, then continuing ({})".format(self.mins_to_wait, datetime.datetime.now()))
+                time.sleep(60*self.mins_to_wait)
+            except StopIteration:
+                break
         if not self.simulate:
             print("{} tweets were deleted. {} tweets were protected.".format(deletion_count, ignored_count))
         else:
@@ -370,12 +370,12 @@ class TweetDeleter():
         if self.liked_keywords_to_keep: 
             print("Keeping liked tweets containing the following keywords (case-insensitive): {}".format(",".join(self.liked_keywords_to_keep)))
 
-        likes = tweepy.Cursor(self.api.favorites).items()
         unliked_count = 0
         ignored_count = 0
-        try:
-            for ind, tweet in enumerate(likes):
-                print("\t#{}:".format(ind))
+        likes = tweepy.Cursor(self.api.favorites).items()
+        while True:
+            try:
+                tweet = likes.next()
                 if self.export:
                     exported = self.export_to_json(tweet, fav=True)
                 else:
@@ -394,11 +394,12 @@ class TweetDeleter():
                     ignored_count += 1
                     if self.verbose:
                         print("\t\tKEEPING {} ({})".format(tweet.id_str, tweet.created_at))
-        except tweepy.error.TweepError as e:
-            print(e)
-            print("Waiting 10 minutes, then starting over ({})".format(datetime.datetime.now()))
-            time.sleep(600)
-            self.unlike_tweets()
+            except tweepy.error.TweepError as e:
+                print(e)
+                print("Waiting {} minutes, then continuing ({})".format(self.mins_to_wait, datetime.datetime.now()))
+                time.sleep(60*self.mins_to_wait)
+            except StopIteration:
+                break
         if not self.simulate:
             print("{} tweets were unliked. {} liked tweets were protected.".format(unliked_count, ignored_count))
         else:
