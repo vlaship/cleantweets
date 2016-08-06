@@ -70,22 +70,22 @@ class TweetDeleter():
         if self.mins_to_wait < 0:
             v = self.load_from_config("DefaultValues", "MinsToWait", 10)
             if v:
-                self.mins_to_wait = v
+                self.mins_to_wait = int(v)
         # DAYS TO KEEP
         if self.days_to_keep < 0:
             v = self.load_from_config("DefaultValues", "DaysToKeep", -1)
             if v:
-                self.days_to_keep = v
+                self.days_to_keep = int(v)
         # LIKE THRESHOLD
         if self.liked_threshold < 0:
             v = self.load_from_config("DefaultValues", "LikedThreshold", -1)
             if v:
-                self.liked_threshold = v
+                self.liked_threshold = int(v)
         # RETWEET THRESHOLD
         if self.liked_threshold < 0:
             v = self.load_from_config("DefaultValues", "RetweetThreshold", -1)
             if v:
-                self.retweet_threshold = v
+                self.retweet_threshold = int(v)
         # TWEET IDs TO KEEP
         if not self.tweet_ids_to_keep:
             p = self.load_from_config("DefaultPaths", "TweetIDsPath", None)
