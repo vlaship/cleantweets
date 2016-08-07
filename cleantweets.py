@@ -67,8 +67,10 @@ class TweetDeleter():
 
     def check_config(self):
         # MINS TO WAIT
+        if not self.mins_to_wait:
+            self.mins_to_wait = -1
         if self.mins_to_wait < 0:
-            v = self.load_from_config("DefaultValues", "MinsToWait", 10)
+            v = self.load_from_config("DefaultValues", "MinsToWait", 15)
             if v:
                 self.mins_to_wait = int(v)
         # DAYS TO KEEP
@@ -112,10 +114,10 @@ class TweetDeleter():
         try: 
             self.min_to_wait = int(self.mins_to_wait)
             if self.mins_to_wait == -1:
-                self.mins_to_wait = 10
+                self.mins_to_wait = 15
         except TypeError:
-            print("Not a valid number of minutes to wait, defaulting to 10 minutes:\n{}".format(e))
-            self.mins_to_wait = 10
+            print("Not a valid number of minutes to wait, defaulting to 15 minutes:\n{}".format(e))
+            self.mins_to_wait = 15
         # DAYS TO KEEP
         try: 
             self.days_to_keep = int(self.days_to_keep)
@@ -304,14 +306,11 @@ class TweetDeleter():
             protected = True
         elif self.contains_keywords_to_keep(tweet, fav=True):
             protected = True
-        elif self.liked_threshold != -1 and tweet.favorite_count >= self.liked_threshold:
-            protected = True
-        elif self.retweet_threshold != -1 and tweet.retweet_count >= self.retweet_threshold:
-            protected = True
         return protected
 
-    def delete_tweets(self):
-        # rate limit appears to be 350 request / hour
+    def delete_tweets(self, max_id = None):
+        error = False
+        last_id = None
         if not self.api:
             print("Could not authenticate. Please check the options set under [Authentication] in your configuration file.")
             return
@@ -326,7 +325,11 @@ class TweetDeleter():
             print("Keeping tweets with at least {} likes".format(self.liked_threshold))
         deletion_count = 0
         ignored_count = 0
-        timeline = tweepy.Cursor(self.api.user_timeline).items()
+        if not max_id:
+            timeline = tweepy.Cursor(self.api.user_timeline, include_rts=True, count=200).items()
+        else:
+            timeline = tweepy.Cursor(self.api.user_timeline, include_rts=True, count=200, max_id=max_id).items()
+
         while True:
             try:
                 tweet = timeline.next()
@@ -350,14 +353,20 @@ class TweetDeleter():
                         print("\t\tKEEPING {} ({})".format(tweet.id_str, tweet.created_at))
             except tweepy.error.TweepError as e:
                 print(e)
-                print("Waiting {} minutes, then continuing ({})".format(self.mins_to_wait, datetime.datetime.now()))
-                time.sleep(60*self.mins_to_wait)
+                last_id = tweet.id
+                error = True
+                break
             except StopIteration:
                 break
         if not self.simulate:
             print("{} tweets were deleted. {} tweets were protected.".format(deletion_count, ignored_count))
         else:
             print("SIMULATION: {} tweets would be deleted. {} tweets would be protected.".format(deletion_count, ignored_count))
+        if error:
+            print("Waiting {} minutes, then starting over ({})".format(self.mins_to_wait, datetime.datetime.now()))
+            time.sleep(60*self.mins_to_wait)            
+            self.delete_tweets(max_id=last_id)
+
 
 
     def unlike_tweets(self):
@@ -416,7 +425,7 @@ if __name__ == "__main__":
     parser.add_argument("--simulate", dest="simulate", help = "only simulate the process", action="store_true")
     parser.add_argument("--verbose", dest="verbose", help = "enable detailed output", action="store_true")
     parser.add_argument("--config", default="settings.ini", metavar="PATH", dest="config_path", help='custom config path (for multiple profiles)', type=str, action="store")
-    parser.add_argument("--wait", default=10, metavar="N", dest="mins_to_wait", type=int, help="wait N minutes after errors/rate limiting", action="store")
+    parser.add_argument("--wait", metavar="N", dest="mins_to_wait", type=int, help="wait N minutes after errors/rate limiting", action="store")
     parser.add_argument("--days", default=-1, metavar="N", dest="days_to_keep", type=int, help="keep last N days of tweets/likes", action="store")
     parser.add_argument("--likes", default=-1, metavar="N", dest="liked_threshold", type=int, help="keep tweets with at least N likes", action="store")
     parser.add_argument("--retweets", default=-1, metavar="N", dest="retweet_threshold", type=int, help="keep tweets with at least N retweets", action="store")
