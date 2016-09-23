@@ -220,7 +220,9 @@ class TweetDeleter():
     def authenticate(self, consumer_key, consumer_secret, access_token, access_token_secret):
         auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
         auth.set_access_token(access_token, access_token_secret)
-        self.api = tweepy.API(auth)
+
+        self.api = tweepy.API(auth, wait_on_rate_limit_notify=True, wait_on_rate_limit=True)
+
         try: 
             self.me = self.api.me()
             self.me = None  # only used to test access
@@ -363,13 +365,15 @@ class TweetDeleter():
         else:
             print("SIMULATION: {} tweets would be deleted. {} tweets would be protected.".format(deletion_count, ignored_count))
         if error:
-            print("Waiting {} minutes, then starting over ({})".format(self.mins_to_wait, datetime.datetime.now()))
+            print("Waiting {} minutes before starting over ({})".format(self.mins_to_wait, datetime.datetime.now()))
             time.sleep(60*self.mins_to_wait)            
             self.delete_tweets(max_id=last_id)
 
 
 
-    def unlike_tweets(self):
+    def unlike_tweets(self, max_id=None):
+        error = False
+        last_id = None
         if not self.api:
             print("Could not authenticate. Please check the options set under [Authentication] in your configuration file.")
             return
@@ -381,7 +385,10 @@ class TweetDeleter():
 
         unliked_count = 0
         ignored_count = 0
-        likes = tweepy.Cursor(self.api.favorites).items()
+        if max_id:
+            likes = tweepy.Cursor(self.api.favorites, count=200, max_id=max_id).items()
+        else:
+            likes = tweepy.Cursor(self.api.favorites, count=200).items()
         while True:
             try:
                 tweet = likes.next()
@@ -405,14 +412,21 @@ class TweetDeleter():
                         print("\t\tKEEPING {} ({})".format(tweet.id_str, tweet.created_at))
             except tweepy.error.TweepError as e:
                 print(e)
-                print("Waiting {} minutes, then continuing ({})".format(self.mins_to_wait, datetime.datetime.now()))
-                time.sleep(60*self.mins_to_wait)
+                last_id = tweet.id
+                error = True
+                break
             except StopIteration:
                 break
         if not self.simulate:
             print("{} tweets were unliked. {} liked tweets were protected.".format(unliked_count, ignored_count))
         else:
             print("SIMULATION: {} tweets would be unliked. {} liked tweets would be protected.".format(unliked_count, ignored_count))
+        if error:
+            print("Waiting {} minutes, then starting over ({})".format(self.mins_to_wait, datetime.datetime.now()))
+            time.sleep(
+                60*self.mins_to_wait)            
+            self.unlike_tweets(max_id=last_id)
+
 
 def comma_string_to_list(s):
    return s.split(',')
