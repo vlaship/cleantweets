@@ -124,7 +124,7 @@ Export all tweets and liked tweets, delete all tweets, unlike all liked tweets, 
 
 `crontab -e`
 
-`@daily ~/cleantweets/autorun.sh`    # Run once a day
+`@daily cd ~/cleantweets && ./autorun.sh`    # Run once a day
 
 ## Requirements
 
