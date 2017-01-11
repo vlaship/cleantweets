@@ -118,6 +118,14 @@ Export and delete all tweets.
 
 Export all tweets and liked tweets, delete all tweets, unlike all liked tweets, detailed output
 
+## Cron job
+
+`crontab -l`
+
+`crontab -e`
+
+`@daily cd ~/cleantweets && ./autorun.sh`    # Run once a day
+
 ## Requirements
 
 - Python 3
