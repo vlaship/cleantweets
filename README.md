@@ -90,7 +90,7 @@ Delete all tweets that are more than 10 days old. Load other options from "setti
 
 Delete all tweets that have fewer than 5 likes.Load other options from "settings.ini".
 
-`python3cleantweets.py --delete --retweets 5`
+`python3 cleantweets.py --delete --retweets 5`
 
 Delete all tweets that have fewer than 5 retweets. Load other options from "settings.ini".
 
@@ -128,8 +128,8 @@ Export all tweets and liked tweets, delete all tweets, unlike all liked tweets, 
 
 ## Requirements
 
-- Python 3
-- tweepy
+- Python == 3.5
+- tweepy == 3.5
 
 ## License
 Apache License (2.0)
